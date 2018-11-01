@@ -1,5 +1,6 @@
 #include <string.h>
 #include <assert.h>
+#include <cilk/cilk.h>
 #include "patterns.h"
 
 void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
@@ -7,7 +8,9 @@ void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     assert (dest != NULL);
     assert (src != NULL);
     assert (worker != NULL);
-    for (int i=0; i < nJob; i++) {
+    
+    int i = 0;
+    cilk_for (i=0; i < nJob; i++) {
         worker(dest + i * sizeJob, src + i * sizeJob);
     }
 }
