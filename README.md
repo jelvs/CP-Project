@@ -1,13 +1,19 @@
 # Concurrency and Parallelism 2018-19
 
 ## Project — Parallel Patterns (v1.0)
-### October 31, 2018
+---
 
+## Comparing times
+
+Time comparison between intial serial version and parallel versions, are rolling on the wiki.
+
+* [Serial Version](https://github.com/jelvs/CP-Project/wiki/Initial-Code-Times)
+* [Parallel Version](https://github.com/jelvs/CP-Project/wiki/Parallel-Version-Times)
+
+---
 ## Project Description
 
-In this lab work you are given a working sequential version of a Ray Tracer written using the C++
-programming language. You are asked to study the given code a create an optimized (parallel)
-version of the code using Cilk+.
+In this lab work you are given a working version of the projet. It will compile and run and produce results, although the execution will be slow as all the given implementations for the patterns are sequential. You are asked to study the given code a create parallel versions of the patterns using Cilk+.
 
 ### 1. Given Version
 
