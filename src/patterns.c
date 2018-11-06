@@ -3,14 +3,13 @@
 #include <assert.h>
 
 #include <cilk/cilk.h>
-#include "cilk/reducer_opadd.h"
+#include <cilk/reducer_opadd.h>
 
 #include "patterns.h"
 
 #define TYPE double
 
 void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
-    /* To be implemented */
     assert (dest != NULL);
     assert (src != NULL);
     assert (worker != NULL);
@@ -22,21 +21,25 @@ void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 }
 
 void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-    /* To be implemented */
     assert (dest != NULL);
     assert (src != NULL);
     assert (worker != NULL);
     
-    CILK_C_REDUCER_OPADD(result, TYPE, 0);
-    CILK_C_REGISTER_REDUCER(result);
+    if (nJob > 1){
+        size_t i;
 
-    int i = 0;
-    cilk_for(i = 0;i < nJob; i++) {
-        result.value += *(TYPE*)(src + i * sizeJob);
+        CILK_C_REDUCER_OPADD(result, TYPE, *(TYPE*)src);
+        CILK_C_REGISTER_REDUCER(result);
+
+        cilk_for(i = 1;i < nJob; i++) {
+            result.value += *(TYPE*)(src + i * sizeJob);
+        }
+
+        memcpy (dest, &result.value, sizeof(TYPE));
+        CILK_C_UNREGISTER_REDUCER(result);
+    } else {
+        memcpy (dest, src, sizeof(TYPE));
     }
-
-    memcpy (dest, &result.value, sizeof(TYPE));
-    CILK_C_UNREGISTER_REDUCER(result);
 }
 
 void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
