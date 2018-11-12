@@ -20,27 +20,32 @@ void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     }
 }
 
+void test (size_t sizeJob, int from, int to, void* dest, int posDest, void* src) {
+    for (int i = from; i<to; i++){
+        *(TYPE *) (dest + posDest * sizeJob) = (*(TYPE *) (dest + posDest * sizeJob)) + (*(TYPE *) (src + i * sizeJob));
+    }
+}
+
 void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     assert (dest != NULL);
     assert (src != NULL);
     assert (worker != NULL);
     
     if (nJob > 1){
-        size_t i;
+        
+        cilk_spawn test(sizeJob, 0, (nJob/2), dest, 0, src);
+        cilk_spawn test(sizeJob, (nJob/2), nJob, dest, 1, src);
 
-        CILK_C_REDUCER_OPADD(result, TYPE, *(TYPE*)src);
-        CILK_C_REGISTER_REDUCER(result);
+        cilk_sync;
 
-        cilk_for(i = 1;i < nJob; i++) {
-            result.value += *(TYPE*)(src + i * sizeJob);
-        }
-
-        memcpy (dest, &result.value, sizeof(TYPE));
-        CILK_C_UNREGISTER_REDUCER(result);
+        *(TYPE *)dest = *(TYPE *)dest + *(TYPE *)(dest + 1 * sizeJob);
+        
     } else {
         memcpy (dest, src, sizeof(TYPE));
     }
 }
+
+
 
 void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     /* To be implemented */
