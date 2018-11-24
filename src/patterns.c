@@ -20,11 +20,24 @@ void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     }
 }
 
-void test (size_t sizeJob, int from, int to, void* dest, int posDest, void* src) {
-    for (int i = from; i<to; i++){
-        *(TYPE *) (dest + posDest * sizeJob) = (*(TYPE *) (dest + posDest * sizeJob)) + (*(TYPE *) (src + i * sizeJob));
-    }
+
+void reduceSerie (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+    assert (dest != NULL);
+    assert (src != NULL);
+    assert (worker != NULL);
+    
+    if (nJob > 1){
+        
+            for(int i=0; i < nJob; i++)
+                worker(dest , dest , src + i * sizeJob);
+            
+        
+    } else {
+        memcpy (dest, src, sizeof(TYPE));
+    
+     }
 }
+
 
 void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     assert (dest != NULL);
@@ -33,17 +46,59 @@ void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
     
     if (nJob > 1){
         
-        cilk_spawn test(sizeJob, 0, (nJob/2), dest, 0, src);
-        cilk_spawn test(sizeJob, (nJob/2), nJob, dest, 1, src);
+        //Por causa do malloc
+        if(nJob >= 10000){
 
-        cilk_sync;
+       
+        //int size = 1000;
+        //iniciar a 0
 
-        *(TYPE *)dest = *(TYPE *)dest + *(TYPE *)(dest + 1 * sizeJob);
+            int size = nJob/1000;
+
+            void* array = malloc(size * sizeJob);
+
+            //void* tmp = malloc(sizeJob);
+            //reduceSerie(tmp, src, nJob, sizeJob, worker);
+            //printf("%lf\n", *(double*)tmp);
+
+
+            cilk_for(int i = 0; i < 1000 ; i++) {
+
+                int first = i * size;
+
+                void* aux = array + i * sizeJob;
+
+                worker(aux, src + first * sizeJob, src + (first + 1) * sizeJob);
+
+                for(int j = 2; j < size ; j++)
+                    worker(aux, aux, src + (first + j) * sizeJob);
+
+
+            }
+            for(int i=0; i < size; i++)
+                worker(dest , dest , array + i * sizeJob);
+
+            //Restantes 
+            for (int j=(1000*size); j<nJob; j++ )
+                worker(dest, dest, src + j * sizeJob);
+
+
+
+            //printf("%lf\n", *(double*)dest);
+
+
+        }else{
+            for(int i=0; i < nJob; i++)
+                worker(dest , dest , src + i * sizeJob);
+        }
+         
         
     } else {
         memcpy (dest, src, sizeof(TYPE));
-    }
+    
+     }
 }
+
 
 
 
@@ -72,8 +127,9 @@ int pack (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter)
 }
 
 void gather (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter) {
-    /* To be implemented */
-    for (int i=0; i < nFilter; i++) {
+
+    // Tudo Independente
+    cilk_for (int i=0; i < nFilter; i++) {
         memcpy (dest + i * sizeJob, src + filter[i] * sizeJob, sizeJob);
     }
 }
