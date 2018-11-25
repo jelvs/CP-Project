@@ -4,6 +4,8 @@
 ### C ###
 # Prerequisites
 *.d
+src/perf.data
+src/perf.data.old
 
 # Object files
 *.o

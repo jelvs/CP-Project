@@ -108,7 +108,8 @@ void testPack (void *src, size_t n, size_t size) {
 }
 
 void testGather (void *src, size_t n, size_t size) {
-    int nFilter = 3;
+    //int nFilter = 3;
+    int nFilter = (n/1000);
     TYPE *dest = malloc (nFilter * size);
     int filter[nFilter];
     for (int i = 0;  i < nFilter;  i++)
