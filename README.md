@@ -88,7 +88,9 @@ Please ask your questions using the Piazza system. Either public (if possible) o
 necessary).
 
 ## 5. Delivery Dates
-TBD;
+  Code submission - 30/11/18
+
+  Report - 02/12/18
 
 ## 6. Delivery Method
 TBD;
