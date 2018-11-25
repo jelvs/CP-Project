@@ -1,5 +1,9 @@
 # Concurrency and Parallelism 2018-19
 
+**master** &nbsp;&nbsp; [![CircleCI](https://circleci.com/gh/jelvs/CP-Project/tree/master.svg?style=svg&circle-token=66b0c6a8f10186f9958444d5c6e045e6df10840c)](https://circleci.com/gh/jelvs/CP-Project/tree/master)
+
+**develop** &nbsp;&nbsp; [![CircleCI](https://circleci.com/gh/jelvs/CP-Project/tree/develop.svg?style=svg&circle-token=66b0c6a8f10186f9958444d5c6e045e6df10840c)](https://circleci.com/gh/jelvs/CP-Project/tree/develop)
+
 ## Project — Parallel Patterns (v1.0)
 ---
 
