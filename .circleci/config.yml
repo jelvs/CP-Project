@@ -1,0 +1,29 @@
+version: 2
+jobs:
+  build:
+    docker:
+    - image: aanciaes/cilkplus-pcre:latest
+
+    working_directory: ~/repo
+
+    steps:
+    - checkout
+
+    - run:
+        name: Make Clean
+        command: | 
+            cd src
+            make clean
+
+    - run:
+        name: Make
+        command: |
+            cd src
+            make
+
+    - run:
+        name: Run
+        command: |
+            cd src
+            make
+            ./main 10
