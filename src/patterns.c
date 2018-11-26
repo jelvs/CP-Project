@@ -21,86 +21,40 @@ void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 }
 
 
-void reduceSerie (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-    assert (dest != NULL);
-    assert (src != NULL);
-    assert (worker != NULL);
-    
-    if (nJob > 1){
-        
-            for(int i=0; i < nJob; i++)
-                worker(dest , dest , src + i * sizeJob);
-            
-        
-    } else {
-        memcpy (dest, src, sizeof(TYPE));
-    
-     }
-}
-
-
 void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     assert (dest != NULL);
     assert (src != NULL);
     assert (worker != NULL);
     
-    if (nJob > 1){
-        
-        //Por causa do malloc
-        if(nJob >= 10000){
+    if (nJob > 1){  
+        // If array size less than 100 000, perform reduce in serial mode
+        if(nJob >= 100000){
+            int size = nJob/100;
+            void* auxiliarOutput = malloc(size * sizeJob);
 
-       
-        //int size = 1000;
-        //iniciar a 0
-
-            int size = nJob/1000;
-
-            void* array = malloc(size * sizeJob);
-
-            //void* tmp = malloc(sizeJob);
-            //reduceSerie(tmp, src, nJob, sizeJob, worker);
-            //printf("%lf\n", *(double*)tmp);
-
-
-            cilk_for(int i = 0; i < 1000 ; i++) {
-
+            cilk_for(int i = 0; i < (nJob/size); i++) {
                 int first = i * size;
+                void* writeToPosition = auxiliarOutput + i * sizeJob;
 
-                void* aux = array + i * sizeJob;
-
-                worker(aux, src + first * sizeJob, src + (first + 1) * sizeJob);
-
-                for(int j = 2; j < size ; j++)
-                    worker(aux, aux, src + (first + j) * sizeJob);
-
-
+                for(int j = 0; j < size ; j++)
+                    worker(writeToPosition, writeToPosition, src + (first + j) * sizeJob);
             }
+
             for(int i=0; i < size; i++)
-                worker(dest , dest , array + i * sizeJob);
+                worker(dest , dest , auxiliarOutput + i * sizeJob);
 
-            //Restantes 
-            for (int j=(1000*size); j<nJob; j++ )
+            //Rest 
+            for (int j=(100*size); j<nJob; j++ )
                 worker(dest, dest, src + j * sizeJob);
-
-
-
-            //printf("%lf\n", *(double*)dest);
-
 
         }else{
             for(int i=0; i < nJob; i++)
                 worker(dest , dest , src + i * sizeJob);
-        }
-         
-        
+        }     
     } else {
         memcpy (dest, src, sizeof(TYPE));
-    
      }
 }
-
-
-
 
 void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     /* To be implemented */
