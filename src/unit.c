@@ -108,8 +108,8 @@ void testPack (void *src, size_t n, size_t size) {
 }
 
 void testGather (void *src, size_t n, size_t size) {
-    //int nFilter = 3;
-    int nFilter = (n/10000000);
+    int nFilter = 3;
+    //int nFilter = (n/10000000);
     TYPE *dest = malloc (nFilter * size);
     int filter[nFilter];
     for (int i = 0;  i < nFilter;  i++)
@@ -149,7 +149,7 @@ void testPipeline (void *src, size_t n, size_t size) {
 
 void testFarm (void *src, size_t n, size_t size) {
     TYPE *dest = malloc (n * size);
-    farm (dest, src, n, size, workerAddOne, 3);
+    farm (dest, src, n, size, workerAddOne, 50);
     printDouble (dest, n, __FUNCTION__);
     free (dest);
 }

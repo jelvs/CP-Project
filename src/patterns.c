@@ -68,17 +68,17 @@ void scanSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*work
     }
 }
 
+
+
 void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     /* To be implemented */
     assert (dest != NULL);
     assert (src != NULL);
     assert (worker != NULL);
-    if (nJob > 1) {
+    if (nJob > 0) {
         memcpy (dest, src, sizeJob);
 
-
-
-
+        
 
         for (int i = 1;  i < nJob;  i++)
             worker(dest + i * sizeJob, src + i * sizeJob, dest + (i-1) * sizeJob);
@@ -122,6 +122,24 @@ void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker
 }
 
 void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
-    /* To be implemented */
-    map (dest, src, nJob, sizeJob, worker);
+    
+    int count = 0;
+    for(int i=0; i<nJob; i+=nWorkers){
+        cilk_for(int j=i; j<count+nWorkers; j++){
+            if(j<nJob)
+                worker(dest + i * sizeJob, src + i * sizeJob);
+         }count++;
+    }
+    
+    
+    
 }
+
+/*void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
+   
+         map (dest, src, nJob, sizeJob, worker);
+        
+
+    
+    
+}*/
