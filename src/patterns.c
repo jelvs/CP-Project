@@ -55,22 +55,20 @@ void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
 
 void upsweep (void* src, size_t lo, size_t hi, struct ScanNode* node, size_t sizeJob) {
     if (lo + 1 == hi){
-		printf("NODE PRE SET: %p\n", node);
-		node  = malloc(sizeof(struct ScanNode));
         node->sum = *(TYPE *)(src + lo * sizeJob);
-		printf("NODE: %p\n", node);
     } else {
         size_t mid = (lo + hi) / 2;
-		struct ScanNode* parent = malloc(sizeof(struct ScanNode));
+
+        node->left = malloc(sizeof(struct ScanNode));
+        node->right = malloc(sizeof(struct ScanNode));
 		
-        cilk_spawn upsweep (src, lo, mid, parent->left, sizeJob);     
-		upsweep (src, mid, hi, parent->right, sizeJob);
+        cilk_spawn upsweep (src, lo, mid, node->left, sizeJob);     
+		upsweep (src, mid, hi, node->right, sizeJob);
         
         cilk_sync;
-		printf("LEFT: %p\n", parent->left);
-		parent->sum = parent->left->sum + parent->right->sum;
-        
-        printf("RESULT: %lf\n", parent->sum);
+		node->sum = node->left->sum + node->right->sum;
+    
+        printf("RESULT: %lf\n", node->sum);
     }
 }
 
@@ -80,16 +78,11 @@ void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
     assert (src != NULL);
     assert (worker != NULL);
 
-    void* aux = malloc (nJob * sizeJob);
-    upsweep (src, 0, nJob, aux, sizeJob);
+    struct ScanNode* parent = malloc(sizeof(struct ScanNode));
+    upsweep (src, 0, nJob, parent, sizeJob);
 
     if (nJob > 1) {
         memcpy (dest, src, sizeJob);
-
-
-
-
-
         for (int i = 1;  i < nJob;  i++)
             worker(dest + i * sizeJob, src + i * sizeJob, dest + (i-1) * sizeJob);
     }
