@@ -56,11 +56,32 @@ void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
      }
 }
 
+void upsweep (void* src, size_t lo, size_t hi, void* aux, size_t sizeJob) {
+    if (lo + 1 == hi){
+        *(TYPE*) aux = *(TYPE *)(src + lo * sizeJob);
+    } else {
+        size_t mid = (lo + hi) / 2;
+    
+        cilk_spawn upsweep (src, lo, mid, aux, sizeJob);     
+        upsweep (src, mid, hi, aux + mid * sizeJob, sizeJob);
+        
+        cilk_sync;
+
+        *(TYPE*) (aux + (hi * sizeJob) - sizeJob) = (*(TYPE*) aux) + (*(TYPE*) (aux + (hi * sizeJob) - sizeJob));
+        
+        printf("RESULT: %lf\n", *(TYPE*) (aux + (hi * sizeJob) - sizeJob));
+    }
+}
+
 void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     /* To be implemented */
     assert (dest != NULL);
     assert (src != NULL);
     assert (worker != NULL);
+
+    void* aux = malloc (nJob * sizeJob);
+    upsweep (src, 0, nJob, aux, sizeJob);
+
     if (nJob > 1) {
         memcpy (dest, src, sizeJob);
         for (int i = 1;  i < nJob;  i++)
