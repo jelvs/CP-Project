@@ -4,6 +4,8 @@
 
 struct ScanNode{
     TYPE sum;
+	TYPE fromLeft;
+	size_t index;
     struct ScanNode* left;
 	struct ScanNode* right;
 };
