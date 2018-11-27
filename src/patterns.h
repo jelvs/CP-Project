@@ -1,6 +1,12 @@
 #ifndef __PATTERNS_H
 #define __PATTERNS_H
+#define TYPE double
 
+struct ScanNode{
+    TYPE sum;
+    struct ScanNode* left;
+	struct ScanNode* right;
+};
 
 void map (
   void *dest,           // Target array

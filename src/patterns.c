@@ -7,8 +7,6 @@
 
 #include "patterns.h"
 
-#define TYPE double
-
 void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
     assert (dest != NULL);
     assert (src != NULL);
@@ -19,7 +17,6 @@ void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
         worker(dest + i * sizeJob, src + i * sizeJob);
     }
 }
-
 
 void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     assert (dest != NULL);
@@ -56,20 +53,24 @@ void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
      }
 }
 
-void upsweep (void* src, size_t lo, size_t hi, void* aux, size_t sizeJob) {
+void upsweep (void* src, size_t lo, size_t hi, struct ScanNode* node, size_t sizeJob) {
     if (lo + 1 == hi){
-        *(TYPE*) aux = *(TYPE *)(src + lo * sizeJob);
+		printf("NODE PRE SET: %p\n", node);
+		node  = malloc(sizeof(struct ScanNode));
+        node->sum = *(TYPE *)(src + lo * sizeJob);
+		printf("NODE: %p\n", node);
     } else {
         size_t mid = (lo + hi) / 2;
-    
-        cilk_spawn upsweep (src, lo, mid, aux, sizeJob);     
-        upsweep (src, mid, hi, aux + mid * sizeJob, sizeJob);
+		struct ScanNode* parent = malloc(sizeof(struct ScanNode));
+		
+        cilk_spawn upsweep (src, lo, mid, parent->left, sizeJob);     
+		upsweep (src, mid, hi, parent->right, sizeJob);
         
         cilk_sync;
-
-        *(TYPE*) (aux + (hi * sizeJob) - sizeJob) = (*(TYPE*) aux) + (*(TYPE*) (aux + (hi * sizeJob) - sizeJob));
+		printf("LEFT: %p\n", parent->left);
+		parent->sum = parent->left->sum + parent->right->sum;
         
-        printf("RESULT: %lf\n", *(TYPE*) (aux + (hi * sizeJob) - sizeJob));
+        printf("RESULT: %lf\n", parent->sum);
     }
 }
 
