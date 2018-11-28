@@ -56,20 +56,20 @@ void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
  
 void upsweep( void* src, void* aux, size_t lo, size_t hi,  size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     if( lo + 1 == hi ) {
-        *(TYPE *) aux = *(TYPE *) (src + lo*sizeJob); 
-		printf("HI: LO: %zd\n%zd ARRAY POS: %p -> VALUE: %lf\n", hi, lo, aux, *(TYPE *)aux);
+        *(TYPE *) (aux + lo * sizeJob) = *(TYPE *) (src + lo*sizeJob);
+        //printf("lo: %zd, hi: %zd, writing in Aux: %p\n",lo, hi, aux);      
     } else {
         size_t mid = (hi + lo) / 2;
-        
+
 		cilk_spawn upsweep(src, aux, lo, mid, sizeJob, worker);
-        upsweep(src, aux + (hi*sizeJob - mid*sizeJob), mid, hi, sizeJob, worker);
+        upsweep(src, aux, mid, hi, sizeJob, worker);
         
 		cilk_sync;
-		//printf("ESCREVER EM -> HI: LO: %zd %zd ARRAY POS: %p -> VALUE1: %lf -> VALUE2: %lf\n", hi, lo, (aux + (hi*sizeJob - sizeJob)), *(TYPE *)(aux + (mid*sizeJob - sizeJob)), *(TYPE *)(aux + (hi*sizeJob - sizeJob)));
-		
+        
+        //printf("lo: %zd, hi: %zd, sum: %p + %p\n",lo, hi, initialPos + (mid*sizeJob - sizeJob), initialPos + (hi*sizeJob - sizeJob));		
 		worker(aux + (hi*sizeJob - sizeJob), aux + (mid*sizeJob - sizeJob), aux + (hi*sizeJob - sizeJob));
-		//printf("ESCREVI EM -> HI: LO: %zd %zd ARRAY POS: %p -> VALUE: %lf\n", hi, lo, (aux + (hi*sizeJob - sizeJob)), *(TYPE *)(aux + (hi*sizeJob - sizeJob)));
-		//printf("RESULT: %lf\n", *(TYPE *)(aux + (hi*sizeJob - sizeJob)));
+
+        printf("Result: %lf\n", *(TYPE *)(aux + (hi*sizeJob - sizeJob)));
     }
 }
 
