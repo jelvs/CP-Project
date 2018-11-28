@@ -53,21 +53,23 @@ void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
      }
 }
 
-void upsweep (void* src, size_t lo, size_t hi, struct ScanNode* node, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-    if (lo + 1 == hi){
-        node->sum = *(TYPE *)(src + lo * sizeJob);
-		node->index = lo;
+ 
+void upsweep( void* src, void* aux, size_t lo, size_t hi,  size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+    if( lo + 1 == hi ) {
+        *(TYPE *) aux = *(TYPE *) (src + lo*sizeJob); 
+		printf("HI: LO: %zd\n%zd ARRAY POS: %p -> VALUE: %lf\n", hi, lo, aux, *(TYPE *)aux);
     } else {
-        size_t mid = (lo + hi) / 2;
-
-        node->left = malloc(sizeof(struct ScanNode));
-        node->right = malloc(sizeof(struct ScanNode));
-		node->index = -1;
-        cilk_spawn upsweep (src, lo, mid, node->left, sizeJob, worker);     
-		upsweep (src, mid, hi, node->right, sizeJob, worker);
+        size_t mid = (hi + lo) / 2;
         
-        cilk_sync;
-		worker(&(node->sum), &(node->left->sum), &(node->right->sum));
+		cilk_spawn upsweep(src, aux, lo, mid, sizeJob, worker);
+        upsweep(src, aux + (hi*sizeJob - mid*sizeJob), mid, hi, sizeJob, worker);
+        
+		cilk_sync;
+		//printf("ESCREVER EM -> HI: LO: %zd %zd ARRAY POS: %p -> VALUE1: %lf -> VALUE2: %lf\n", hi, lo, (aux + (hi*sizeJob - sizeJob)), *(TYPE *)(aux + (mid*sizeJob - sizeJob)), *(TYPE *)(aux + (hi*sizeJob - sizeJob)));
+		
+		worker(aux + (hi*sizeJob - sizeJob), aux + (mid*sizeJob - sizeJob), aux + (hi*sizeJob - sizeJob));
+		//printf("ESCREVI EM -> HI: LO: %zd %zd ARRAY POS: %p -> VALUE: %lf\n", hi, lo, (aux + (hi*sizeJob - sizeJob)), *(TYPE *)(aux + (hi*sizeJob - sizeJob)));
+		//printf("RESULT: %lf\n", *(TYPE *)(aux + (hi*sizeJob - sizeJob)));
     }
 }
 
@@ -75,8 +77,8 @@ void downsweep (void* src, void* dest, size_t sizeJob, struct ScanNode* node, TY
 	
 	if(node->index != -1){
 			worker(dest + node->index * sizeJob, src + node->index * sizeJob, &fromLeft);
-	}else{
 	
+	}else{
 		cilk_spawn downsweep(src, dest, sizeJob, node->left, fromLeft, worker);
 		downsweep(src, dest, sizeJob, node->right, fromLeft + node->left->sum, worker);
 		
@@ -90,9 +92,11 @@ void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
     assert (src != NULL);
     assert (worker != NULL);
 
-    struct ScanNode* parent = malloc(sizeof(struct ScanNode));
-    upsweep (src, 0, nJob, parent, sizeJob, worker);
-	downsweep (src, dest, sizeJob, parent, 0, worker);
+    //struct ScanNode* parent = malloc(sizeof(struct ScanNode));
+	void* aux = malloc(nJob*sizeJob);
+	
+    upsweep(src, aux, 0, nJob, sizeJob, worker);
+	//downsweep (src, dest, sizeJob, parent, 0, worker);
 }
 
 int pack (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
