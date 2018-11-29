@@ -136,19 +136,31 @@ void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
 	  void* aux = malloc(nJob*sizeJob);
 	
     upsweep(src, aux, 0, nJob, sizeJob, worker);
-	  downsweep (src, dest, aux, sizeJob, 0, nJob, *(TYPE *)(aux + nJob*sizeJob - sizeJob), 0, worker);
+	downsweep (src, dest, aux, sizeJob, 0, nJob, *(TYPE *)(aux + nJob*sizeJob - sizeJob), 0, worker);
+}
+
+// Worker used just for pack, adding the filter array
+static void packWorker(void* a, const void* b, const void* c) {
+    // a = b + c
+    *(int *)a = *(int *)b + *(int *)c;
 }
 
 int pack (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
-    /* To be implemented */
-    int pos = 0;
-    for (int i=0; i < nJob; i++) {
-        if (filter[i]) {
-            memcpy (dest + pos * sizeJob, src + i * sizeJob, sizeJob);
-            pos++;
+    
+    void* bitmap = malloc (nJob * sizeof(int));
+    scan (bitmap, (void*) filter, nJob, sizeof(int), packWorker);
+
+    size_t lastPos = 0;
+    cilk_for (int i = 0; i < nJob; i++) {
+        // If there is an increment
+        if (*(int*) (bitmap + i * sizeof(int)) > lastPos){
+            int outputPos = *(int*)(bitmap + i * sizeof(int));
+            memcpy (dest + outputPos * sizeJob - sizeJob, src + i * sizeJob, sizeJob);
+            lastPos++;
         }
     }
-    return pos;
+
+    return lastPos;
 }
 
 void gather (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter) {
