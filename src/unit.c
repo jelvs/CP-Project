@@ -122,7 +122,7 @@ void testGather (void *src, size_t n, size_t size) {
 }
 
 void testScatter (void *src, size_t n, size_t size) {
-    int nDest = 6;
+    int nDest = n;
     TYPE *dest = malloc (nDest * size);
     memset (dest, 0, nDest * size);
     int *filter = calloc(n,sizeof(*filter));
