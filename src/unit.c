@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "patterns.h"
+#include <stdio.h>
 
 #include "patterns.h"
 #include "debug.h"
@@ -149,7 +150,7 @@ void testPipeline (void *src, size_t n, size_t size) {
 
 void testFarm (void *src, size_t n, size_t size) {
     TYPE *dest = malloc (n * size);
-    farm (dest, src, n, size, workerAddOne, 50);
+    farm (dest, src, n, size, workerAddOne, 10);
     printDouble (dest, n, __FUNCTION__);
     free (dest);
 }

@@ -1,9 +1,10 @@
 #include <stdio.h> // just for debug
 #include <string.h>
 #include <assert.h>
-
+#include <unistd.h>
 #include <cilk/cilk.h>
 #include <cilk/reducer_opadd.h>
+#include <unistd.h>
 
 #include "patterns.h"
 
@@ -101,6 +102,7 @@ void gather (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
 
     // Tudo Independente
     cilk_for (int i=0; i < nFilter; i++) {
+    
         memcpy (dest + i * sizeJob, src + filter[i] * sizeJob, sizeJob);
     }
 }
@@ -112,14 +114,72 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
     }
 }
 
+
+ static void firstPipThread(void* dest, void* src, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2)){
+
+    
+    int i = 0;
+    while (i < nJob) {      
+        worker(dest + i * sizeJob, src + i * sizeJob);
+        i++;         
+    } 
+    tasks[0] = 1;   
+
+    
+}
+
+ static void contPipThread(int i, void *dest, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2)){
+
+    int j = 0;
+    int id = 0;   
+    while (j < nJob) {
+        if(tasks[i] == id){
+            worker(dest + i * sizeJob, dest + i * sizeJob);  
+            tasks[i] +=  1;
+            i++;
+            
+                
+        }else{
+            usleep(200);
+        }
+        id++;
+        j++;
+        
+            
+        
+
+    } 
+}
+
 void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
-    /* To be implemented */
-    cilk_for (int i=0; i < nJob; i++) {
+
+    int *tasks = malloc(sizeof(int) * nJob);
+    tasks[0]= 0;
+
+    cilk_spawn firstPipThread(dest, src, nJob, sizeJob, tasks, workerList[0]);
+    //cilk_sync  ;
+
+    for(int i = 1; i < nWorkers ; i++){  
+        cilk_spawn contPipThread(i, dest, nJob, sizeJob, tasks, workerList[i]);
+        
+    } //cilk_sync  ;
+
+
+}
+
+
+
+
+
+
+/*void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+    for (int i=0; i < nJob; i++) {
         memcpy (dest + i * sizeJob, src + i * sizeJob, sizeJob);
-        for (int j = 0;  j < nWorkers;  j++)
+        for (int j = 0;  j < nWorkers; j++)
             workerList[j](dest + i * sizeJob, dest + i * sizeJob);
     }
-}
+}*/
+
 
 void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
     
@@ -128,18 +188,14 @@ void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
         cilk_for(int j=i; j<count+nWorkers; j++){
             if(j<nJob)
                 worker(dest + i * sizeJob, src + i * sizeJob);
-         }count++;
+            else
+                usleep(100);
+        }
+        count++;
     }
     
     
     
 }
 
-/*void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
-   
-         map (dest, src, nJob, sizeJob, worker);
-        
 
-    
-    
-}*/
