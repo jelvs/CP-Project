@@ -115,31 +115,17 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
 }
 
 
- void firstPipThread(void* dest, void* src, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2), size_t nWorkers){
+void workerThread(int id, void *dest, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2)){
 
-    cilk_for (int i=0; i < nJob; i++) {
-        memcpy (dest + i * sizeJob, src + i * sizeJob, sizeJob);
-        for (int j = 0;  j < nWorkers; j++){
-            worker(dest + i * sizeJob, src + i * sizeJob);
+    int count = 0;   
+    while (count < nJob) {
 
-            
-        } tasks[i] = 1;   
-     
-    }
-}
+        //Wait and do nothing until is equal to id
+        while(tasks[count] != id);
 
- void contPipThread(int id, void *dest, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2)){
-
-    int i = 0;   
-    while (i < nJob) {
-
-        while(tasks[i] != id);
-
-        worker(dest + i * sizeJob, dest + i * sizeJob);  
-        tasks[i] +=  1; 
-        i++;         
-             
-
+        worker(dest + count * sizeJob, dest + count * sizeJob);  
+        tasks[count] +=  1; 
+        count++;         
     } 
 }
 
@@ -147,34 +133,17 @@ void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker
 
     int *tasks = malloc(sizeof(int) * nJob);
     
-
     cilk_for (int i=0; i < nJob; i++) {
         tasks[i]= 0;
         memcpy (dest + i * sizeJob, src + i * sizeJob, sizeJob);
     }
 
-
     for(int id = 0; id < nWorkers ; id++){  
-        cilk_spawn contPipThread(id, dest, nJob, sizeJob, tasks, workerList[id]);
         
-    } //cilk_sync  ;
-
+        cilk_spawn workerThread(id, dest, nJob, sizeJob, tasks, workerList[id]);
+    }
 
 }
-
-
-
-
-
-
-/*void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
-    for (int i=0; i < nJob; i++) {
-        memcpy (dest + i * sizeJob, src + i * sizeJob, sizeJob);
-        for (int j = 0;  j < nWorkers; j++)
-            workerList[j](dest + i * sizeJob, dest + i * sizeJob);
-    }
-}*/
-
 
 void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
     
