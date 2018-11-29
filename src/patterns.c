@@ -115,38 +115,30 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
 }
 
 
- static void firstPipThread(void* dest, void* src, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2)){
+ void firstPipThread(void* dest, void* src, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2), size_t nWorkers){
 
-    
-    int i = 0;
-    while (i < nJob) {      
-        worker(dest + i * sizeJob, src + i * sizeJob);
-        i++;         
-    } 
-    tasks[0] = 1;   
+    cilk_for (int i=0; i < nJob; i++) {
+        memcpy (dest + i * sizeJob, src + i * sizeJob, sizeJob);
+        for (int j = 0;  j < nWorkers; j++){
+            worker(dest + i * sizeJob, src + i * sizeJob);
 
-    
+            
+        } tasks[i] = 1;   
+     
+    }
 }
 
- static void contPipThread(int i, void *dest, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2)){
+ void contPipThread(int id, void *dest, size_t nJob, size_t sizeJob, int tasks[], void (*worker)(void *v1, const void *v2)){
 
-    int j = 0;
-    int id = 0;   
-    while (j < nJob) {
-        if(tasks[i] == id){
-            worker(dest + i * sizeJob, dest + i * sizeJob);  
-            tasks[i] +=  1;
-            i++;
-            
-                
-        }else{
-            usleep(200);
-        }
-        id++;
-        j++;
-        
-            
-        
+    int i = 0;   
+    while (i < nJob) {
+
+        while(tasks[i] != id);
+
+        worker(dest + i * sizeJob, dest + i * sizeJob);  
+        tasks[i] +=  1; 
+        i++;         
+             
 
     } 
 }
@@ -154,13 +146,16 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
 void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
 
     int *tasks = malloc(sizeof(int) * nJob);
-    tasks[0]= 0;
+    
 
-    cilk_spawn firstPipThread(dest, src, nJob, sizeJob, tasks, workerList[0]);
-    //cilk_sync  ;
+    cilk_for (int i=0; i < nJob; i++) {
+        tasks[i]= 0;
+        memcpy (dest + i * sizeJob, src + i * sizeJob, sizeJob);
+    }
 
-    for(int i = 1; i < nWorkers ; i++){  
-        cilk_spawn contPipThread(i, dest, nJob, sizeJob, tasks, workerList[i]);
+
+    for(int id = 0; id < nWorkers ; id++){  
+        cilk_spawn contPipThread(id, dest, nJob, sizeJob, tasks, workerList[id]);
         
     } //cilk_sync  ;
 
