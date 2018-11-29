@@ -147,15 +147,15 @@ static void packWorker(void* a, const void* b, const void* c) {
 
 int pack (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
     
-    void* bitmap = malloc (nJob * sizeof(int));
-    scan (bitmap, (void*) filter, nJob, sizeof(int), packWorker);
+    void* bitsum = malloc (nJob * sizeof(int));
+    scan (bitsum, (void*) filter, nJob, sizeof(int), packWorker);
 
     size_t lastPos = 0;
     cilk_for (int i = 0; i < nJob; i++) {
         // If there is an increment
-        if (*(int*) (bitmap + i * sizeof(int)) > lastPos){
-            int outputPos = *(int*)(bitmap + i * sizeof(int));
-            memcpy (dest + outputPos * sizeJob - sizeJob, src + i * sizeJob, sizeJob);
+        if (*(int*) (bitsum + i * sizeof(int)) > lastPos){
+            int outputPos = *(int*)(bitsum + i * sizeof(int)) - 1;
+            memcpy (dest + outputPos * sizeJob, src + i * sizeJob, sizeJob);
             lastPos++;
         }
     }
