@@ -163,6 +163,37 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
     cilk_for(int i=0; i < nJob; i++) {
 		memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
 	}
+	
+	
+	/* IMPLEMENTATION DETERMINISTIC LEFT PRIORITY 
+	
+	cilk_for(int i=0; i < nJob; i++) {
+		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+		}
+    }
+	*/
+	
+	/* IMPLEMENTATION DETERMINISTIC GREATER VALUE PRIORITY 
+	
+	cilk_for(int i=0; i < nJob; i++) {
+		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+		}else if(*(TYPE *)(dest + filter[i] * sizeJob) < *(TYPE *)(src + i * sizeJob)){
+			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);	
+		}
+    }
+	*/
+	/* IMPLEMENTATION DETERMINISTIC SMALLER VALUE PRIORITY 
+	cilk_for(int i=0; i < nJob; i++) {
+		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+		}else if(*(TYPE *)(dest + filter[i] * sizeJob) > *(TYPE *)(src + i * sizeJob)){
+			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);	
+		}
+    }
+	*/
+	
 }
 
 void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
