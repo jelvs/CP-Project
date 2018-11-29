@@ -159,10 +159,10 @@ void gather (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
 }
 
 void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
-    /* To be implemented */
-    for (int i=0; i < nJob; i++) {
-        memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
-    }
+    /* IMPLEMENTATION NON DETERMINISTIC */
+    cilk_for(int i=0; i < nJob; i++) {
+		memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+	}
 }
 
 void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
