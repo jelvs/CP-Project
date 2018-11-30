@@ -24,18 +24,14 @@ int main(int argc, char* argv[]) {
     long long start, end;
     
     int runAll = 0;
-    int a;
-    if ((a = getopt (argc, argv, "a")!=-1)){
-        runAll = 1;
-    }
-
+    
     int c;
-    while ((c = getopt (argc, argv, "d")) != -1)
+    while ((c = getopt (argc, argv, "ad")) != -1)
     switch (c) {
-        case 'd':
-            debug = 1; break;
         case 'a':
             runAll = 1; break;
+        case 'd':
+            debug = 1; break;
         default:
             printf("Invalid option\n");
             abort ();
