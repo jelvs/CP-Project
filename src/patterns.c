@@ -46,30 +46,20 @@ void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
     assert (worker != NULL);
     
     if (nJob > 1){  
-        // If array size less than 100 000, perform reduce in serial mode
-        if(nJob >= 100000){
-            int size = nJob/100;
-            void* auxiliarOutput = malloc(size * sizeJob);
+        size_t gap = 1;
+        void* auxiliarOutput = malloc (nJob * sizeJob);
 
-            cilk_for(int i = 0; i < (nJob/size); i++) {
-                int first = i * size;
-                void* writeToPosition = auxiliarOutput + i * sizeJob;
-
-                for(int j = 0; j < size ; j++)
-                    worker(writeToPosition, writeToPosition, src + (first + j) * sizeJob);
+        while (gap <= nJob){
+            cilk_for (int i = 0; i<nJob-gap; i = (i + gap + gap)) {
+                if (gap == 1) {
+                    worker (auxiliarOutput + i * sizeJob, src + i * sizeJob, src + (i+gap) * sizeJob);
+                } else {
+                    worker (auxiliarOutput + i * sizeJob, auxiliarOutput + i * sizeJob, auxiliarOutput + (i+gap) * sizeJob);
+                }
             }
-
-            for(int i=0; i < size; i++)
-                worker(dest , dest , auxiliarOutput + i * sizeJob);
-
-            //Rest 
-            for (int j=(100*size); j<nJob; j++ )
-                worker(dest, dest, src + j * sizeJob);
-
-        }else{
-            for(int i=0; i < nJob; i++)
-                worker(dest , dest , src + i * sizeJob);
-        }     
+            gap = gap * 2;
+        }
+        memcpy (dest, auxiliarOutput, sizeJob);
     } else {
         memcpy (dest, src, sizeJob);
      }
