@@ -37,7 +37,19 @@ static void workerMin(void* a, const void* b, const void* c) {
 
 static void workerAdd(void* a, const void* b, const void* c) {
     // a = b + c
-    *(TYPE *)a = *(TYPE *)b + *(TYPE *)c;
+    if (c == NULL){
+        if (b == NULL){
+            *(TYPE *)a = (TYPE) 0;
+        } else {
+            *(TYPE *)a = *(TYPE *)b;
+        }
+    }else{
+        if(b == NULL){
+            *(TYPE *)a = *(TYPE *)c;
+        }else {
+            *(TYPE *)a = *(TYPE *)b + *(TYPE *)c;
+        }
+    }
 }
 
 /*

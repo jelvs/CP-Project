@@ -50,36 +50,46 @@ void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
                 worker(dest , dest , src + i * sizeJob);
         }     
     } else {
-        memcpy (dest, src, sizeof(TYPE));
+        memcpy (dest, src, sizeJob);
      }
 }
 
 void upsweepTree (void* src, size_t lo, size_t hi, struct ScanNode* node, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     if (lo + 1 == hi){
-        node->sum = *(TYPE *)(src + lo * sizeJob);
+        node->sum = malloc (sizeJob);
+        node->fromLeft = malloc (sizeJob);
+        
+        memcpy (node->sum, src + lo * sizeJob, sizeJob);
         node->index = lo;
     } else {
         size_t mid = (lo + hi) / 2;
 
         node->left = malloc(sizeof(struct ScanNode));
         node->right = malloc(sizeof(struct ScanNode));
+        node->sum = malloc (sizeJob);
+        node->fromLeft = malloc (sizeJob);
         node->index = -1;
-        cilk_spawn upsweepTree (src, lo, mid, node->left, sizeJob, worker);     
+
+        cilk_spawn upsweepTree (src, lo, mid, node->left, sizeJob, worker);
         upsweepTree (src, mid, hi, node->right, sizeJob, worker);
         
         cilk_sync;
-        worker(&(node->sum), &(node->left->sum), &(node->right->sum));
+        worker(node->sum, node->left->sum, node->right->sum);
     }
 }
 
-void downsweepTree (void* src, void* dest, size_t sizeJob, struct ScanNode* node, TYPE fromLeft, void (*worker)(void *v1, const void *v2, const void *v3)) {
+void downsweepTree (void* src, void* dest, size_t sizeJob, struct ScanNode* node, void* fromLeft, void (*worker)(void *v1, const void *v2, const void *v3)) {
     
     if(node->index != -1){
-            worker(dest + node->index * sizeJob, src + node->index * sizeJob, &fromLeft);
+        worker(dest + node->index * sizeJob, src + node->index * sizeJob, fromLeft);
     }else{
     
         cilk_spawn downsweepTree(src, dest, sizeJob, node->left, fromLeft, worker);
-        downsweepTree(src, dest, sizeJob, node->right, fromLeft + node->left->sum, worker);
+    
+        void* fromLeftSum = malloc (sizeJob);
+        worker(fromLeftSum, node->left->sum, fromLeft);
+
+        downsweepTree(src, dest, sizeJob, node->right, fromLeftSum, worker);
         
         cilk_sync;
     }
@@ -93,14 +103,13 @@ void scanTree (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker
 
     struct ScanNode* parent = malloc(sizeof(struct ScanNode));
     upsweepTree (src, 0, nJob, parent, sizeJob, worker);
-    downsweepTree (src, dest, sizeJob, parent, 0, worker);
+    downsweepTree (src, dest, sizeJob, parent, NULL, worker);
 }
 
  
 void upsweep( void* src, void* aux, size_t lo, size_t hi,  size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     if( lo + 1 == hi ) {
-        *(TYPE *) (aux + lo * sizeJob) = *(TYPE *) (src + lo*sizeJob);
-        //printf("lo: %zd, hi: %zd, writing in Aux: %p\n",lo, hi, aux);      
+        memcpy (aux + lo * sizeJob, src + lo * sizeJob, sizeJob);
     } else {
         size_t mid = (hi + lo) / 2;
 
@@ -113,14 +122,22 @@ void upsweep( void* src, void* aux, size_t lo, size_t hi,  size_t sizeJob, void 
     }
 }
 
-void downsweep (void* src, void* dest, void* aux, size_t sizeJob, size_t lo, size_t hi, TYPE sum, TYPE fromLeft, void (*worker)(void *v1, const void *v2, const void *v3)) {
+void downsweep (void* src, void* dest, void* aux, size_t sizeJob, size_t lo, size_t hi, void* sum, void* fromLeft, void (*worker)(void *v1, const void *v2, const void *v3)) {
 	
 	if(lo + 1 == hi){
-		worker(dest + lo * sizeJob, src + lo * sizeJob, &fromLeft);
+		worker(dest + lo * sizeJob, src + lo * sizeJob, fromLeft);
 	}else{
 		size_t mid = (hi + lo) / 2;
-		cilk_spawn downsweep(src, dest,aux, sizeJob, lo, mid, *(TYPE *)(aux + mid*sizeJob - sizeJob), fromLeft, worker);	
-		downsweep(src, dest, aux, sizeJob, mid, hi, (*(TYPE *)(aux + (hi*sizeJob -sizeJob)) - *(TYPE *)(aux + (mid*sizeJob -sizeJob))), *(TYPE *)(aux + mid*sizeJob -sizeJob) + fromLeft, worker);
+    
+		cilk_spawn downsweep(src, dest,aux, sizeJob, lo, mid, aux + mid * sizeJob - sizeJob, fromLeft, worker);
+
+        void* sum = malloc (sizeJob);
+        worker (sum, aux + (hi*sizeJob -sizeJob), aux + (mid*sizeJob -sizeJob));
+
+        void* fromLeftSum = malloc (sizeJob);
+        worker(fromLeftSum, aux + mid*sizeJob -sizeJob, fromLeft);
+
+		downsweep(src, dest, aux, sizeJob, mid, hi, sum, fromLeftSum, worker);
 		
 		//implicit cilk_sync;		
 	}
@@ -132,17 +149,19 @@ void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
     assert (src != NULL);
     assert (worker != NULL);
 
-    //struct ScanNode* parent = malloc(sizeof(struct ScanNode));
-	  void* aux = malloc(nJob*sizeJob);
+	void* aux = malloc(nJob*sizeJob);
 	
     upsweep(src, aux, 0, nJob, sizeJob, worker);
-	downsweep (src, dest, aux, sizeJob, 0, nJob, *(TYPE *)(aux + nJob*sizeJob - sizeJob), 0, worker);
+	downsweep (src, dest, aux, sizeJob, 0, nJob, aux + nJob*sizeJob - sizeJob, NULL, worker);
 }
 
 // Worker used just for pack, adding the filter array
 static void packWorker(void* a, const void* b, const void* c) {
-    // a = b + c
-    *(int *)a = *(int *)b + *(int *)c;
+    if (c == NULL) {
+        *(int *)a = *(int *)b;
+    } else {
+        *(int *)a = *(int *)b + *(int *)c;
+    }
 }
 
 int pack (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
@@ -183,8 +202,8 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
 		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
 		}
-    }
-	*/
+    }*/
+	
 	
 	/* IMPLEMENTATION DETERMINISTIC GREATER VALUE PRIORITY 
 	
@@ -216,7 +235,7 @@ void workerThread(int id, void *dest, size_t nJob, size_t sizeJob, int tasks[], 
         //Wait and do nothing until is equal to id
         while(tasks[count] != id);
 
-        worker(dest + count * sizeJob, dest + count * sizeJob);  
+        worker(dest + count * sizeJob, dest + count * sizeJob);
         tasks[count] +=  1; 
         count++;         
     } 
