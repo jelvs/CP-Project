@@ -8,6 +8,16 @@
 #include "queue.c"
 #include "patterns.h"
 
+void mapSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
+     /* To be implemented */
+     assert (dest != NULL);
+     assert (src != NULL);
+     assert (worker != NULL);
+     for (int i=0; i < nJob; i++) {
+         worker(dest + i * sizeJob, src + i * sizeJob);
+     }
+ }
+
 void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
     assert (dest != NULL);
     assert (src != NULL);
@@ -19,36 +29,37 @@ void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     }
 }
 
+void reduceSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+     assert (dest != NULL);
+     assert (src != NULL);
+     assert (worker != NULL);
+     if (nJob > 1) {
+         memcpy (dest, src, sizeJob);
+         for (int i = 1;  i < nJob;  i++)
+             worker(dest, dest, src + i * sizeJob);
+     }
+ }
+
 void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     assert (dest != NULL);
     assert (src != NULL);
     assert (worker != NULL);
     
     if (nJob > 1){  
-        // If array size less than 100 000, perform reduce in serial mode
-        if(nJob >= 100000){
-            int size = nJob/100;
-            void* auxiliarOutput = malloc(size * sizeJob);
+        size_t gap = 1;
+        void* auxiliarOutput = malloc (nJob * sizeJob);
 
-            cilk_for(int i = 0; i < (nJob/size); i++) {
-                int first = i * size;
-                void* writeToPosition = auxiliarOutput + i * sizeJob;
-
-                for(int j = 0; j < size ; j++)
-                    worker(writeToPosition, writeToPosition, src + (first + j) * sizeJob);
+        while (gap <= nJob){
+            cilk_for (int i = 0; i<nJob-gap; i = (i + gap + gap)) {
+                if (gap == 1) {
+                    worker (auxiliarOutput + i * sizeJob, src + i * sizeJob, src + (i+gap) * sizeJob);
+                } else {
+                    worker (auxiliarOutput + i * sizeJob, auxiliarOutput + i * sizeJob, auxiliarOutput + (i+gap) * sizeJob);
+                }
             }
-
-            for(int i=0; i < size; i++)
-                worker(dest , dest , auxiliarOutput + i * sizeJob);
-
-            //Rest 
-            for (int j=(100*size); j<nJob; j++ )
-                worker(dest, dest, src + j * sizeJob);
-
-        }else{
-            for(int i=0; i < nJob; i++)
-                worker(dest , dest , src + i * sizeJob);
-        }     
+            gap = gap * 2;
+        }
+        memcpy (dest, auxiliarOutput, sizeJob);
     } else {
         memcpy (dest, src, sizeJob);
      }
@@ -155,6 +166,17 @@ void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
 	downsweep (src, dest, aux, sizeJob, 0, nJob, aux + nJob*sizeJob - sizeJob, NULL, worker);
 }
 
+void scanSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+     assert (dest != NULL);
+     assert (src != NULL);
+     assert (worker != NULL);
+     if (nJob > 1) {
+         memcpy (dest, src, sizeJob);
+         for (int i = 1;  i < nJob;  i++)
+             worker(dest + i * sizeJob, src + i * sizeJob, dest + (i-1) * sizeJob);
+     }
+ }
+
 // Worker used just for pack, adding the filter array
 static void packWorker(void* a, const void* b, const void* c) {
     if (c == NULL) {
@@ -182,12 +204,38 @@ int pack (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter)
     return lastPos;
 }
 
+int packSerial (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
+     /* To be implemented */
+     int pos = 0;
+     for (int i=0; i < nJob; i++) {
+         if (filter[i]) {
+             memcpy (dest + pos * sizeJob, src + i * sizeJob, sizeJob);
+             pos++;
+         }
+     }
+     return pos;
+ }
+
 void gather (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter) {
     // Tudo Independente
     cilk_for (int i=0; i < nFilter; i++) {
         memcpy (dest + i * sizeJob, src + filter[i] * sizeJob, sizeJob);
     }
 }
+
+void gatherSerial (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter) {
+     /* To be implemented */
+     for (int i=0; i < nFilter; i++) {
+         memcpy (dest + i * sizeJob, src + filter[i] * sizeJob, sizeJob);
+     }
+ }
+
+ void scatterSerial (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
+     /* To be implemented */
+     for (int i=0; i < nJob; i++) {
+         memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+     }
+ }
 
 void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
     /* IMPLEMENTATION NON DETERMINISTIC */
@@ -199,27 +247,41 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
 	/* IMPLEMENTATION DETERMINISTIC LEFT PRIORITY 
 	
 	cilk_for(int i=0; i < nJob; i++) {
-		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+        int comp = memcmp(dest + filter[i] * sizeJob, 0.0, sizeJob);
+		if(comp == 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
 		}
     }*/
 	
 	
-	/* IMPLEMENTATION DETERMINISTIC GREATER VALUE PRIORITY 
+	/*IMPLEMENTATION DETERMINISTIC GREATER VALUE PRIORITY 
 	
 	cilk_for(int i=0; i < nJob; i++) {
-		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+        double zero = 0.0;
+        void* x = &zero;
+        int comp = memcmp(dest + filter[i] * sizeJob, x, sizeJob);
+		if(comp == 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
-		}else if(*(TYPE *)(dest + filter[i] * sizeJob) < *(TYPE *)(src + i * sizeJob)){
-			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);	
 		}
-    }
-	*/
+		else{
+			//printf("OLD VALUE %lf -- NEW VALUE %lf\n", *(double*)(dest + filter[i] * sizeJob), *(double*)(src + i * sizeJob));
+			int comp2 = memcmp(dest + (filter[i] * sizeJob), src + (i * sizeJob), sizeJob);
+			//printf("COMP2 %d\n", comp2);
+			if(comp2 > 0){
+				//printf("Write %lf on %lf with comp2 = %d\n", *(double*)(src + i * sizeJob), *(double*)(dest + filter[i] * sizeJob), comp2);
+				memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+			}
+		}
+           
+    }*/
+	
 	/* IMPLEMENTATION DETERMINISTIC SMALLER VALUE PRIORITY 
 	cilk_for(int i=0; i < nJob; i++) {
-		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+        int comp = memcmp(dest + filter[i] * sizeJob, 0.0, sizeJob);
+        int comp2 = memcmp(dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+		if(comp == 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
-		}else if(*(TYPE *)(dest + filter[i] * sizeJob) > *(TYPE *)(src + i * sizeJob)){
+		}else if(comp2 > 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);	
 		}
     }
@@ -256,6 +318,15 @@ void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker
 
 }
 
+void pipelineSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+     /* To be implemented */
+     for (int i=0; i < nJob; i++) {
+         memcpy (dest + i * sizeJob, src + i * sizeJob, sizeJob);
+         for (int j = 0;  j < nWorkers;  j++)
+             workerList[j](dest + i * sizeJob, dest + i * sizeJob);
+     }
+ }
+
 void farmSlave(void* dest, void* src, Queue* stream, void* mutex, void (*worker)(void *v1, const void *v2), size_t sizeJob){
 	size_t index = 0;
 	while(index != -1){
@@ -275,3 +346,8 @@ void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
 		cilk_spawn farmSlave(dest, src, stream, &mutex, worker, sizeJob);
 	} 
 }
+
+ void farmSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
+     /* To be implemented */
+     mapSerial (dest, src, nJob, sizeJob, worker);
+ }
