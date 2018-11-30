@@ -1,6 +1,5 @@
 #include<stdio.h>
 #include<stdlib.h>
-#include <pthread.h>
 
 typedef struct Queue {
         size_t capacity;
@@ -20,7 +19,8 @@ Queue * createQueue(size_t nJob, void* src, size_t sizeJob) {
         Q->capacity = nJob;
         Q->front = 0;
         Q->rear = nJob - 1;
-       
+		Q->sizeJob = sizeJob;
+		
         return Q;
 }
 size_t Dequeue(Queue *Q) {

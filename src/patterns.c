@@ -3,9 +3,9 @@
 #include <assert.h>
 #include <unistd.h>
 #include <cilk/cilk.h>
-#include <cilk/reducer_opadd.h>
 #include <unistd.h>
-
+#include <pthread.h>
+#include "queue.c"
 #include "patterns.h"
 
 void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
@@ -237,15 +237,22 @@ void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker
 
 }
 
+void farmSlave(void* dest, void* src, Queue* stream, void* mutex, void (*worker)(void *v1, const void *v2), size_t sizeJob){
+	size_t index = 0;
+	while(index != -1){
+		pthread_mutex_lock(mutex);
+		index = Dequeue(stream);
+		pthread_mutex_unlock(mutex);
+		
+		if(index != -1)
+			worker(dest + index, src + index);
+	}
+}
+
 void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
-    int count = 0;
-    for(int i=0; i<nJob; i+=nWorkers){
-        cilk_for(int j=i; j<count+nWorkers; j++){
-            if(j<nJob)
-                worker(dest + i * sizeJob, src + i * sizeJob);
-            else
-                usleep(100);
-        }
-        count++;
-    }  
+    Queue* stream = createQueue(nJob, src, sizeJob);
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	for(int j = 0; j < nWorkers; j++){
+		cilk_spawn farmSlave(dest, src, stream, &mutex, worker, sizeJob);
+	} 
 }
