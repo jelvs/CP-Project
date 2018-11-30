@@ -3,10 +3,16 @@
 
 typedef void (*TESTFUNCTION)(void *, size_t, size_t);
 
-extern TESTFUNCTION testFunction[];
+extern TESTFUNCTION testAllFunction[];
 
-extern char *testNames[];
+extern char *testAllNames[];
 
-extern int nTestFunction;
+extern TESTFUNCTION testParallelFunction[];
+
+extern char *testParallelNames[];
+
+extern int nTestAllFunction;
+
+extern int nTestParallelFunction;
 
 #endif

@@ -23,12 +23,19 @@ int main(int argc, char* argv[]) {
     int i, N;
     long long start, end;
     
+    int runAll = 0;
+    int a;
+    if ((a = getopt (argc, argv, "a")!=-1)){
+        runAll = 1;
+    }
 
     int c;
     while ((c = getopt (argc, argv, "d")) != -1)
     switch (c) {
         case 'd':
             debug = 1; break;
+        case 'a':
+            runAll = 1; break;
         default:
             printf("Invalid option\n");
             abort ();
@@ -57,11 +64,28 @@ int main(int argc, char* argv[]) {
     if (debug)
         printf ("\n\n");
 
-    for (int i = 0;  i < nTestFunction;  i++) {
+    int nFunctions = 0;
+    if(runAll){
+            nFunctions = nTestAllFunction;
+        }else{
+            nFunctions = nTestParallelFunction;
+        }
+
+    for (int i = 0;  i < nFunctions;  i++) {
         start = wall_clock_time();
-        testFunction[i] (src, N, sizeof(*src));
+        if(runAll){
+            testAllFunction[i] (src, N, sizeof(*src));
+        }else{
+            testParallelFunction[i] (src, N, sizeof(*src));
+        }
+        
         end = wall_clock_time();
-        printf ("%s:\t%8ld\tmicroseconds\n", testNames[i], (long) (end-start));
+        if (runAll){
+            printf ("%s:\t%8ld\tmicroseconds\n", testAllNames[i], (long) (end-start));
+        }else{
+            printf ("%s:\t%8ld\tmicroseconds\n", testParallelNames[i], (long) (end-start));
+        }
+
         if (debug)
             printf ("\n\n");
     }

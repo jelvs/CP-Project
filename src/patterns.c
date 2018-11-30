@@ -8,6 +8,16 @@
 #include "queue.c"
 #include "patterns.h"
 
+void mapSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
+     /* To be implemented */
+     assert (dest != NULL);
+     assert (src != NULL);
+     assert (worker != NULL);
+     for (int i=0; i < nJob; i++) {
+         worker(dest + i * sizeJob, src + i * sizeJob);
+     }
+ }
+
 void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
     assert (dest != NULL);
     assert (src != NULL);
@@ -18,6 +28,17 @@ void map (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
         worker(dest + i * sizeJob, src + i * sizeJob);
     }
 }
+
+void reduceSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+     assert (dest != NULL);
+     assert (src != NULL);
+     assert (worker != NULL);
+     if (nJob > 1) {
+         memcpy (dest, src, sizeJob);
+         for (int i = 1;  i < nJob;  i++)
+             worker(dest, dest, src + i * sizeJob);
+     }
+ }
 
 void reduce (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
     assert (dest != NULL);
@@ -155,6 +176,17 @@ void scan (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
 	downsweep (src, dest, aux, sizeJob, 0, nJob, aux + nJob*sizeJob - sizeJob, NULL, worker);
 }
 
+void scanSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+     assert (dest != NULL);
+     assert (src != NULL);
+     assert (worker != NULL);
+     if (nJob > 1) {
+         memcpy (dest, src, sizeJob);
+         for (int i = 1;  i < nJob;  i++)
+             worker(dest + i * sizeJob, src + i * sizeJob, dest + (i-1) * sizeJob);
+     }
+ }
+
 // Worker used just for pack, adding the filter array
 static void packWorker(void* a, const void* b, const void* c) {
     if (c == NULL) {
@@ -182,12 +214,38 @@ int pack (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter)
     return lastPos;
 }
 
+int packSerial (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
+     /* To be implemented */
+     int pos = 0;
+     for (int i=0; i < nJob; i++) {
+         if (filter[i]) {
+             memcpy (dest + pos * sizeJob, src + i * sizeJob, sizeJob);
+             pos++;
+         }
+     }
+     return pos;
+ }
+
 void gather (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter) {
     // Tudo Independente
     cilk_for (int i=0; i < nFilter; i++) {
         memcpy (dest + i * sizeJob, src + filter[i] * sizeJob, sizeJob);
     }
 }
+
+void gatherSerial (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter) {
+     /* To be implemented */
+     for (int i=0; i < nFilter; i++) {
+         memcpy (dest + i * sizeJob, src + filter[i] * sizeJob, sizeJob);
+     }
+ }
+
+ void scatterSerial (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
+     /* To be implemented */
+     for (int i=0; i < nJob; i++) {
+         memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+     }
+ }
 
 void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
     /* IMPLEMENTATION NON DETERMINISTIC */
@@ -256,6 +314,15 @@ void pipeline (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker
 
 }
 
+void pipelineSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+     /* To be implemented */
+     for (int i=0; i < nJob; i++) {
+         memcpy (dest + i * sizeJob, src + i * sizeJob, sizeJob);
+         for (int j = 0;  j < nWorkers;  j++)
+             workerList[j](dest + i * sizeJob, dest + i * sizeJob);
+     }
+ }
+
 void farmSlave(void* dest, void* src, Queue* stream, void* mutex, void (*worker)(void *v1, const void *v2), size_t sizeJob){
 	size_t index = 0;
 	while(index != -1){
@@ -275,3 +342,8 @@ void farm (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
 		cilk_spawn farmSlave(dest, src, stream, &mutex, worker, sizeJob);
 	} 
 }
+
+ void farmSerial (void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
+     /* To be implemented */
+     mapSerial (dest, src, nJob, sizeJob, worker);
+ }
