@@ -248,12 +248,12 @@ void gatherSerial (void *dest, void *src, size_t nJob, size_t sizeJob, const int
  }
 
 void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
-    /* IMPLEMENTATION NON DETERMINISTIC */
+    /* IMPLEMENTATION NON DETERMINISTIC 
     cilk_for(int i=0; i < nJob; i++) {
 		memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
 	}
 	
-	
+	*/
 	/* IMPLEMENTATION DETERMINISTIC LEFT PRIORITY 
 	
 	cilk_for(int i=0; i < nJob; i++) {
@@ -264,20 +264,29 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
     }*/
 	
 	
-	/*IMPLEMENTATION DETERMINISTIC GREATER VALUE PRIORITY 
+	/*IMPLEMENTATION DETERMINISTIC GREATER VALUE PRIORITY */
 	
 	cilk_for(int i=0; i < nJob; i++) {
         double zero = 0.0;
         void* x = &zero;
         int comp = memcmp(dest + filter[i] * sizeJob, x, sizeJob);
-        int comp2 = memcmp(dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
 		if(comp == 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
-		}else if(comp2 < 0){
-			 memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);	
+		}
+		else{
+			printf("OLD VALUE %lf -- NEW VALUE %lf\n", *(double*)(dest + filter[i] * sizeJob), *(double*)(src + i * sizeJob));
+			int comp2 = memcmp(dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+			printf("COMP2 %d\n", comp2);
+			if(comp2 < 0){
+				printf("Write %lf on %lf with comp2 = %d\n", *(double*)(src + i * sizeJob), *(double*)(dest + filter[i] * sizeJob), comp2);
+				memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+			}
 		}
         
-    }*/
+
+		
+        
+    }
 	
 	/* IMPLEMENTATION DETERMINISTIC SMALLER VALUE PRIORITY 
 	cilk_for(int i=0; i < nJob; i++) {
