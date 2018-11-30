@@ -257,27 +257,35 @@ void scatter (void *dest, void *src, size_t nJob, size_t sizeJob, const int *fil
 	/* IMPLEMENTATION DETERMINISTIC LEFT PRIORITY 
 	
 	cilk_for(int i=0; i < nJob; i++) {
-		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+        int comp = memcmp(dest + filter[i] * sizeJob, 0.0, sizeJob);
+		if(comp == 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
 		}
     }*/
 	
 	
-	/* IMPLEMENTATION DETERMINISTIC GREATER VALUE PRIORITY 
+	/*IMPLEMENTATION DETERMINISTIC GREATER VALUE PRIORITY 
 	
 	cilk_for(int i=0; i < nJob; i++) {
-		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+        double zero = 0.0;
+        void* x = &zero;
+        int comp = memcmp(dest + filter[i] * sizeJob, x, sizeJob);
+        int comp2 = memcmp(dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+		if(comp == 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
-		}else if(*(TYPE *)(dest + filter[i] * sizeJob) < *(TYPE *)(src + i * sizeJob)){
-			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);	
+		}else if(comp2 < 0){
+			 memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);	
 		}
-    }
-	*/
+        
+    }*/
+	
 	/* IMPLEMENTATION DETERMINISTIC SMALLER VALUE PRIORITY 
 	cilk_for(int i=0; i < nJob; i++) {
-		if(*(TYPE *)(dest + filter[i] * sizeJob) == 0.0){
+        int comp = memcmp(dest + filter[i] * sizeJob, 0.0, sizeJob);
+        int comp2 = memcmp(dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
+		if(comp == 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);
-		}else if(*(TYPE *)(dest + filter[i] * sizeJob) > *(TYPE *)(src + i * sizeJob)){
+		}else if(comp2 > 0){
 			memcpy (dest + filter[i] * sizeJob, src + i * sizeJob, sizeJob);	
 		}
     }
